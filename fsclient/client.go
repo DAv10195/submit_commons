@@ -26,30 +26,24 @@ func NewFileServerClient(adr string, username string, password string) *FileServ
 	}
 }
 
-func (fsc *FileServerClient) UploadFile (url string, srcPath string) error{
+func (fsc *FileServerClient) UploadFile (url string, reader *io.Reader) (error){
 	fullURL,err := url2.Parse(fsc.adr)
 	if err != nil {
 		return err
 	}
 	fullURL.Path = url
 	url = fullURL.String()
-	file, err := os.Open(srcPath)
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
-	defer file.Close()
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile(filepath.Ext(filepath.Base(url)), filepath.Base(file.Name()))
+	part, err := writer.CreateFormFile(filepath.Ext(filepath.Base(url)), filepath.Base(url))
 
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
 
-	io.Copy(part, file)
+	io.Copy(part, *reader)
 	writer.Close()
 	request, err := http.NewRequest("POST", url, body)
 	request.SetBasicAuth(fsc.username, fsc.password)
@@ -80,7 +74,7 @@ func (fsc *FileServerClient) UploadFile (url string, srcPath string) error{
 	return nil
 }
 
-func (fsc *FileServerClient) DownloadFile(url string, destPath string) error{
+func (fsc *FileServerClient) DownloadFile(url string, destPath string) (error){
 	fullURL,err := url2.Parse(fsc.adr)
 	if err != nil {
 		return err
