@@ -8,8 +8,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	url2 "net/url"
-	"os"
-	"path/filepath"
 )
 
 type FileServerClient struct {
@@ -26,7 +24,7 @@ func NewFileServerClient(adr string, username string, password string) *FileServ
 	}
 }
 
-func (fsc *FileServerClient) UploadFile (url string, reader *io.Reader) (error){
+func (fsc *FileServerClient) UploadFile (url string, reader *io.Reader, filename string) error {
 	fullURL,err := url2.Parse(fsc.adr)
 	if err != nil {
 		return err
@@ -36,15 +34,23 @@ func (fsc *FileServerClient) UploadFile (url string, reader *io.Reader) (error){
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile(filepath.Ext(filepath.Base(url)), filepath.Base(url))
+	part, err := writer.CreateFormFile("file", filename)
 
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
 
-	io.Copy(part, *reader)
-	writer.Close()
+	_,err = io.Copy(part, *reader)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	err = writer.Close()
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
 	request, err := http.NewRequest("POST", url, body)
 	request.SetBasicAuth(fsc.username, fsc.password)
 
@@ -74,34 +80,36 @@ func (fsc *FileServerClient) UploadFile (url string, reader *io.Reader) (error){
 	return nil
 }
 
-func (fsc *FileServerClient) DownloadFile(url string, destPath string) (error){
+func (fsc *FileServerClient) DownloadFile(url string, writer *io.Writer) error {
 	fullURL,err := url2.Parse(fsc.adr)
 	if err != nil {
 		return err
 	}
 	fullURL.Path = url
 	url = fullURL.String()
-
 	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
 	request.SetBasicAuth(fsc.username, fsc.password)
 	client := &http.Client{}
-	// get the response from file server
+	// get the response from file server.
 	resp,err := client.Do(request)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err =  resp.Body.Close()
+		if err != nil {
+			panic("cannot close body")
+			return
+		}
+	}()
 
-	// Create the file
-	destPath = filepath.Join(destPath, filepath.Base(url))
-	out, err := os.Create(destPath)
-	if err != nil {
-		return err
+	// copy the body to writer and return it.
+	if _, err := io.Copy(*writer, resp.Body); err != nil {
+		log.Fatal(err)
 	}
-	defer out.Close()
-
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
-	return err
+	return nil
 }
 

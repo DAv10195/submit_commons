@@ -1,4 +1,4 @@
-package submit_commons
+package main
 
 import "github.com/dchest/uniuri"
 
