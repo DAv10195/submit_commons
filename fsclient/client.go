@@ -2,6 +2,8 @@ package fsclient
 
 import (
 	"bytes"
+	"github.com/DAv10195/submit_commons/encryption"
+	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"log"
@@ -14,13 +16,17 @@ type FileServerClient struct {
 	adr string
 	username string
 	password string
+	logger   *logrus.Entry
+	encryption encryption.Encryption
 }
 
-func NewFileServerClient(adr string, username string, password string) *FileServerClient{
+func NewFileServerClient(adr string, username string, password string, logger *logrus.Entry, encryption encryption.Encryption) *FileServerClient{
 	return &FileServerClient{
 		adr: adr,
 		username: username,
 		password: password,
+		logger:   logger,
+		encryption: encryption,
 	}
 }
 
@@ -37,25 +43,25 @@ func (fsc *FileServerClient) UploadFile (url string, reader *io.Reader, filename
 	part, err := writer.CreateFormFile("file", filename)
 
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
 
 	_,err = io.Copy(part, *reader)
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
 	err = writer.Close()
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
 	request, err := http.NewRequest("POST", url, body)
-	request.SetBasicAuth(fsc.username, fsc.password)
+	decryptedPass, err := fsc.encryption.Decrypt(fsc.password)
+	if err != nil {
+		return err
+	}
+	request.SetBasicAuth(fsc.username, decryptedPass)
 
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
 
@@ -65,33 +71,39 @@ func (fsc *FileServerClient) UploadFile (url string, reader *io.Reader, filename
 	response, err := client.Do(request)
 
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
-	defer response.Body.Close()
+	defer func() {
+		err =  response.Body.Close()
+		if err != nil {
+			fsc.logger.WithError(err).Error("error closing the resp body while uploading")
+			return
+		}
+	}()
 
-	resp , err := ioutil.ReadAll(response.Body)
-
+	_ , err = ioutil.ReadAll(response.Body)
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
-	log.Printf("the response from file server is %s", resp)
 	return nil
 }
 
-func (fsc *FileServerClient) DownloadFile(url string, writer *io.Writer) error {
+func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) error {
 	fullURL,err := url2.Parse(fsc.adr)
 	if err != nil {
 		return err
 	}
 	fullURL.Path = url
 	url = fullURL.String()
-	request, err := http.NewRequest("GET", url, nil)
+	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
-	request.SetBasicAuth(fsc.username, fsc.password)
+	decryptedPass, err := fsc.encryption.Decrypt(fsc.password)
+	if err != nil {
+		return err
+	}
+	request.SetBasicAuth(fsc.username, decryptedPass)
 	client := &http.Client{}
 	// get the response from file server.
 	resp,err := client.Do(request)
@@ -101,13 +113,13 @@ func (fsc *FileServerClient) DownloadFile(url string, writer *io.Writer) error {
 	defer func() {
 		err =  resp.Body.Close()
 		if err != nil {
-			panic("cannot close body")
+			fsc.logger.WithError(err).Error("error closing the resp body while downloading")
 			return
 		}
 	}()
 
 	// copy the body to writer and return it.
-	if _, err := io.Copy(*writer, resp.Body); err != nil {
+	if _, err := io.Copy(writer, resp.Body); err != nil {
 		log.Fatal(err)
 	}
 	return nil
