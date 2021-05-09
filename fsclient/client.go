@@ -118,7 +118,7 @@ func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) error {
 
 	// copy the body to writer and return it.
 	if _, err := io.Copy(writer, resp.Body); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	return nil
 }
