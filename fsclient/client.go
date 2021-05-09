@@ -30,7 +30,7 @@ func NewFileServerClient(adr string, username string, password string, logger *l
 	}
 }
 
-func (fsc *FileServerClient) UploadFile (url string, reader *io.Reader, filename string) error {
+func (fsc *FileServerClient) UploadFile (url string, reader io.Reader, filename string) error {
 	fullURL,err := url2.Parse(fsc.adr)
 	if err != nil {
 		return err
@@ -40,31 +40,28 @@ func (fsc *FileServerClient) UploadFile (url string, reader *io.Reader, filename
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
+	defer func() {
+		err = writer.Close()
+		if err != nil {
+			fsc.logger.WithError(err).Error("error closing multi part writer")
+		}
+	}()
 	part, err := writer.CreateFormFile("file", filename)
-
 	if err != nil {
 		return err
 	}
 
-	_,err = io.Copy(part, *reader)
+	_,err = io.Copy(part, reader)
 	if err != nil {
 		return err
 	}
-	err = writer.Close()
-	if err != nil {
-		return err
-	}
-	request, err := http.NewRequest("POST", url, body)
+
+	request, err := http.NewRequest(http.MethodPost, url, body)
 	decryptedPass, err := fsc.encryption.Decrypt(fsc.password)
 	if err != nil {
 		return err
 	}
 	request.SetBasicAuth(fsc.username, decryptedPass)
-
-	if err != nil {
-		return err
-	}
-
 	request.Header.Add("Content-Type", writer.FormDataContentType())
 	client := &http.Client{}
 
@@ -85,6 +82,7 @@ func (fsc *FileServerClient) UploadFile (url string, reader *io.Reader, filename
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
