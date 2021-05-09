@@ -57,12 +57,12 @@ func (fsc *FileServerClient) UploadFile (url string, reader io.Reader, filename 
 	}
 
 	request, err := http.NewRequest(http.MethodPost, url, body)
+	request.Header.Add("Content-Type", writer.FormDataContentType())
 	decryptedPass, err := fsc.encryption.Decrypt(fsc.password)
 	if err != nil {
 		return err
 	}
 	request.SetBasicAuth(fsc.username, decryptedPass)
-	request.Header.Add("Content-Type", writer.FormDataContentType())
 	client := &http.Client{}
 
 	response, err := client.Do(request)
