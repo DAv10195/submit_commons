@@ -2,11 +2,11 @@ package fsclient
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/DAv10195/submit_commons/encryption"
 	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
-	"log"
 	"mime/multipart"
 	"net/http"
 	url2 "net/url"
@@ -21,10 +21,14 @@ type FileServerClient struct {
 }
 
 func NewFileServerClient(adr string, username string, password string, logger *logrus.Entry, encryption encryption.Encryption) *FileServerClient{
+	encryptedPass, err := encryption.Encrypt(password)
+	if err != nil {
+		panic("error in encryption")
+	}
 	return &FileServerClient{
 		adr: adr,
 		username: username,
-		password: password,
+		password: encryptedPass,
 		logger:   logger,
 		encryption: encryption,
 	}
@@ -40,22 +44,19 @@ func (fsc *FileServerClient) UploadFile (url string, reader io.Reader, filename 
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	defer func() {
-		err = writer.Close()
-		if err != nil {
-			fsc.logger.WithError(err).Error("error closing multi part writer")
-		}
-	}()
 	part, err := writer.CreateFormFile("file", filename)
 	if err != nil {
 		return err
 	}
-
-	_,err = io.Copy(part, reader)
+	_, err = io.Copy(part, reader)
 	if err != nil {
 		return err
 	}
-
+	err = writer.Close()
+	if err != nil {
+		fsc.logger.WithError(err).Error("error closing multi part writer")
+		return err
+	}
 	request, err := http.NewRequest(http.MethodPost, url, body)
 	decryptedPass, err := fsc.encryption.Decrypt(fsc.password)
 	if err != nil {
@@ -64,7 +65,6 @@ func (fsc *FileServerClient) UploadFile (url string, reader io.Reader, filename 
 	request.SetBasicAuth(fsc.username, decryptedPass)
 	request.Header.Add("Content-Type", writer.FormDataContentType())
 	client := &http.Client{}
-
 	response, err := client.Do(request)
 
 	if err != nil {
@@ -77,7 +77,9 @@ func (fsc *FileServerClient) UploadFile (url string, reader io.Reader, filename 
 			return
 		}
 	}()
-
+	if response.StatusCode != http.StatusAccepted {
+		fsc.logger.Error(fmt.Printf("Upload request failed for file %s. status code is %d", url ,response.StatusCode))
+	}
 	_ , err = ioutil.ReadAll(response.Body)
 	if err != nil {
 		return err
@@ -108,6 +110,7 @@ func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		err =  resp.Body.Close()
 		if err != nil {
@@ -115,10 +118,13 @@ func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) error {
 			return
 		}
 	}()
+	if resp.StatusCode != http.StatusOK {
+		fsc.logger.Error(fmt.Printf("Downloading request for file %s failed. status code is %d",url ,resp.StatusCode))
+	}
 
 	// copy the body to writer and return it.
-	if _, err := io.Copy(writer, resp.Body); err != nil {
-		log.Fatal(err)
+	if _, err = io.Copy(writer, resp.Body); err != nil {
+		return err
 	}
 	return nil
 }
