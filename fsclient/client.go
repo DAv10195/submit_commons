@@ -128,3 +128,42 @@ func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) error {
 	}
 	return nil
 }
+
+func (fsc *FileServerClient) UploadTextToFS(url string, data []byte) error {
+	fullURL,err := url2.Parse(fsc.adr)
+	if err != nil {
+		return err
+	}
+	fullURL.Path = url
+	url = fullURL.String()
+
+	body := bytes.NewBuffer(data)
+	request, err := http.NewRequest(http.MethodPost, url, body)
+	decryptedPass, err := fsc.encryption.Decrypt(fsc.password)
+	if err != nil {
+		return err
+	}
+	request.SetBasicAuth(fsc.username, decryptedPass)
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err =  response.Body.Close()
+		if err != nil {
+			fsc.logger.WithError(err).Error("error closing the resp body while uploading")
+			return
+		}
+	}()
+	if response.StatusCode != http.StatusAccepted {
+		fsc.logger.Error(fmt.Printf("Upload request failed for file %s. status code is %d", url ,response.StatusCode))
+	}
+	_ , err = ioutil.ReadAll(response.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
