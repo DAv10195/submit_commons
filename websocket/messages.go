@@ -2,6 +2,11 @@ package websocket
 
 import "github.com/DAv10195/submit_commons/containers"
 
+const (
+	TaskRespExecStatusOk = iota
+	TaskRespExecStatusErr = iota
+)
+
 type Keepalive struct {
 	OsType			string	`json:"os_type"`
 	IpAddress		string	`json:"ip_address"`
@@ -26,4 +31,5 @@ type TaskResponse struct {
 	Payload		string	`json:"payload"`
 	Handler		string	`json:"handler"`
 	Task		string	`json:"task"`
+	Status		int		`json:"status"`
 }
