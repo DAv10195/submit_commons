@@ -7,7 +7,7 @@ const (
 	MessageTypeKeepaliveResponse	= "keepalive_response"
 
 	MessageTypeTask					= "task"
-	MessageTypeTaskResponse			= "task_response"
+	MessageTypeTaskResponses		= "task_responses"
 
 	AgentIdHeader					= "X-Submit-Agent-ID"
 )

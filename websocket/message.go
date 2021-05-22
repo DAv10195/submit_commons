@@ -42,5 +42,5 @@ func (m *Message) ToBinary() []byte {
 }
 
 func init() {
-	msgTypes.Add(MessageTypeKeepalive, MessageTypeKeepaliveResponse, MessageTypeTask, MessageTypeTaskResponse)
+	msgTypes.Add(MessageTypeKeepalive, MessageTypeKeepaliveResponse, MessageTypeTask, MessageTypeTaskResponses)
 }
