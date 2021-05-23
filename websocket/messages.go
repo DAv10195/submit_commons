@@ -33,3 +33,7 @@ type TaskResponse struct {
 	Task		string	`json:"task"`
 	Status		int		`json:"status"`
 }
+
+type TaskResponses struct {
+	Responses []*TaskResponse	`json:"task_responses"`
+}
