@@ -2,11 +2,11 @@ package fsclient
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/DAv10195/submit_commons/encryption"
 	"github.com/sirupsen/logrus"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	url2 "net/url"
@@ -23,7 +23,7 @@ type FileServerClient struct {
 func NewFileServerClient(adr string, username string, password string, logger *logrus.Entry, encryption encryption.Encryption) *FileServerClient{
 	encryptedPass, err := encryption.Encrypt(password)
 	if err != nil {
-		panic("error in encryption")
+		logger.WithError(err).Error("failed to encrypt password")
 	}
 	return &FileServerClient{
 		adr: adr,
@@ -54,7 +54,6 @@ func (fsc *FileServerClient) UploadFile (url string, reader io.Reader, filename 
 	}
 	err = writer.Close()
 	if err != nil {
-		fsc.logger.WithError(err).Error("error closing multi part writer")
 		return err
 	}
 	request, err := http.NewRequest(http.MethodPost, url, body)
@@ -73,18 +72,12 @@ func (fsc *FileServerClient) UploadFile (url string, reader io.Reader, filename 
 	defer func() {
 		err =  response.Body.Close()
 		if err != nil {
-			fsc.logger.WithError(err).Error("error closing the resp body while uploading")
 			return
 		}
 	}()
 	if response.StatusCode != http.StatusAccepted {
 		fsc.logger.Error(fmt.Printf("Upload request failed for file %s. status code is %d", url ,response.StatusCode))
 	}
-	_ , err = ioutil.ReadAll(response.Body)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -115,11 +108,11 @@ func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) error {
 		err =  resp.Body.Close()
 		if err != nil {
 			fsc.logger.WithError(err).Error("error closing the resp body while downloading")
-			return
 		}
 	}()
 	if resp.StatusCode != http.StatusOK {
-		fsc.logger.Error(fmt.Printf("Downloading request for file %s failed. status code is %d",url ,resp.StatusCode))
+		msg := fmt.Sprintf("Downloading request for file %s failed. status code is %d", url ,resp.StatusCode)
+		return errors.New(msg)
 	}
 
 	// copy the body to writer and return it.
@@ -153,15 +146,11 @@ func (fsc *FileServerClient) UploadTextToFS(url string, data []byte) error {
 		err =  response.Body.Close()
 		if err != nil {
 			fsc.logger.WithError(err).Error("error closing the resp body while uploading")
-			return
 		}
 	}()
 	if response.StatusCode != http.StatusAccepted {
-		fsc.logger.Error(fmt.Printf("Upload request failed for file %s. status code is %d", url ,response.StatusCode))
-	}
-	_ , err = ioutil.ReadAll(response.Body)
-	if err != nil {
-		return err
+		msg := fmt.Sprintf("Upload request failed for file %s. status code is %d", url ,response.StatusCode)
+		return errors.New(msg)
 	}
 
 	return nil
