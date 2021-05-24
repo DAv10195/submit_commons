@@ -72,11 +72,12 @@ func (fsc *FileServerClient) UploadFile (url string, reader io.Reader, filename 
 	defer func() {
 		err =  response.Body.Close()
 		if err != nil {
-			return
+			fsc.logger.WithError(err).Error("error closing the resp body while uploading")
 		}
 	}()
 	if response.StatusCode != http.StatusAccepted {
-		fsc.logger.Error(fmt.Printf("Upload request failed for file %s. status code is %d", url ,response.StatusCode))
+		msg := fmt.Sprintf("Upload request failed for file %s. status code is %d", url ,response.StatusCode)
+		return errors.New(msg)
 	}
 	return nil
 }
