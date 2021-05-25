@@ -14,7 +14,7 @@ import (
 )
 
 type FileServerClient struct {
-	adr string
+	adr *url2.URL
 	username string
 	password string
 	logger   *logrus.Entry
@@ -34,27 +34,28 @@ func NewFileServerClient(adr string, username string, password string, logger *l
 	if encryption == nil {
 		return nil, errors.New("failed to initialize file server client, encryption was not initialized")
 	}
+	adrUrl,err := url2.Parse(adr)
+	if err != nil {
+		return nil, err
+	}
 	return &FileServerClient{
-		adr: adr,
-		username: username,
-		password: password,
-		logger:   logger,
+		adr:        adrUrl,
+		username:   username,
+		password:   password,
+		logger:     logger,
 		encryption: encryption,
 	},nil
 }
 
-func (fsc *FileServerClient) UploadFile (url string, reader *os.File) error {
-	fullURL,err := url2.Parse(fsc.adr)
-	if err != nil {
-		return err
-	}
+func (fsc *FileServerClient) UploadFile (url string, reader *os.File, isFolder bool) error {
+	
+	fullURL := fsc.adr
 	fullURL.Path = url
 	url = fullURL.String()
-
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	defer func(){
-		err = writer.Close()
+		err := writer.Close()
 		if err != nil {
 			if fsc.logger != nil {
 				fsc.logger.WithError(err).Error("error closing the multipart writer while uploading")
@@ -72,6 +73,11 @@ func (fsc *FileServerClient) UploadFile (url string, reader *os.File) error {
 	request, err := http.NewRequest(http.MethodPost, url, body)
 	if err != nil {
 		return err
+	}
+	if isFolder {
+		q := request.URL.Query()
+		q.Add("isFolder", "true")
+		request.URL.RawQuery = q.Encode()
 	}
 	decryptedPass, err := fsc.encryption.Decrypt(fsc.password)
 	if err != nil {
@@ -101,10 +107,8 @@ func (fsc *FileServerClient) UploadFile (url string, reader *os.File) error {
 }
 
 func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) error {
-	fullURL,err := url2.Parse(fsc.adr)
-	if err != nil {
-		return err
-	}
+	
+	fullURL := fsc.adr
 	fullURL.Path = url
 	url = fullURL.String()
 	request, err := http.NewRequest(http.MethodGet, url, nil)
@@ -144,10 +148,7 @@ func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) error {
 }
 
 func (fsc *FileServerClient) UploadTextToFS(url string, data []byte) error {
-	fullURL,err := url2.Parse(fsc.adr)
-	if err != nil {
-		return err
-	}
+	fullURL := fsc.adr
 	fullURL.Path = url
 	url = fullURL.String()
 
@@ -177,4 +178,5 @@ func (fsc *FileServerClient) UploadTextToFS(url string, data []byte) error {
 	}
 
 	return nil
+
 }
