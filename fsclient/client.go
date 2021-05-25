@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	url2 "net/url"
+	"os"
 )
 
 type FileServerClient struct {
@@ -20,21 +21,29 @@ type FileServerClient struct {
 	encryption encryption.Encryption
 }
 
-func NewFileServerClient(adr string, username string, password string, logger *logrus.Entry, encryption encryption.Encryption) *FileServerClient{
-	encryptedPass, err := encryption.Encrypt(password)
-	if err != nil {
-		logger.WithError(err).Error("failed to encrypt password")
+func NewFileServerClient(adr string, username string, password string, logger *logrus.Entry, encryption encryption.Encryption) (*FileServerClient, error){
+	if username == "" {
+		return nil, errors.New("failed to initialize file server client, username was not given")
+	}
+	if  password == ""{
+		return nil, errors.New("failed to initialize file server client, password was not given")
+	}
+	if adr == "" {
+		return nil, errors.New("failed to initialize file server client, fs address was not given")
+	}
+	if encryption == nil {
+		return nil, errors.New("failed to initialize file server client, encryption was not initialized")
 	}
 	return &FileServerClient{
 		adr: adr,
 		username: username,
-		password: encryptedPass,
+		password: password,
 		logger:   logger,
 		encryption: encryption,
-	}
+	},nil
 }
 
-func (fsc *FileServerClient) UploadFile (url string, reader io.Reader, filename string) error {
+func (fsc *FileServerClient) UploadFile (url string, reader *os.File) error {
 	fullURL,err := url2.Parse(fsc.adr)
 	if err != nil {
 		return err
@@ -44,7 +53,15 @@ func (fsc *FileServerClient) UploadFile (url string, reader io.Reader, filename 
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("file", filename)
+	defer func(){
+		err = writer.Close()
+		if err != nil {
+			if fsc.logger != nil {
+				fsc.logger.WithError(err).Error("error closing the multipart writer while uploading")
+			}
+		}
+	}()
+	part, err := writer.CreateFormFile("file", reader.Name())
 	if err != nil {
 		return err
 	}
@@ -52,11 +69,10 @@ func (fsc *FileServerClient) UploadFile (url string, reader io.Reader, filename 
 	if err != nil {
 		return err
 	}
-	err = writer.Close()
+	request, err := http.NewRequest(http.MethodPost, url, body)
 	if err != nil {
 		return err
 	}
-	request, err := http.NewRequest(http.MethodPost, url, body)
 	decryptedPass, err := fsc.encryption.Decrypt(fsc.password)
 	if err != nil {
 		return err
@@ -72,7 +88,9 @@ func (fsc *FileServerClient) UploadFile (url string, reader io.Reader, filename 
 	defer func() {
 		err =  response.Body.Close()
 		if err != nil {
-			fsc.logger.WithError(err).Error("error closing the resp body while uploading")
+			if fsc.logger != nil {
+				fsc.logger.WithError(err).Error("error closing the resp body while uploading")
+			}
 		}
 	}()
 	if response.StatusCode != http.StatusAccepted {
@@ -108,7 +126,9 @@ func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) error {
 	defer func() {
 		err =  resp.Body.Close()
 		if err != nil {
-			fsc.logger.WithError(err).Error("error closing the resp body while downloading")
+			if fsc.logger != nil {
+				fsc.logger.WithError(err).Error("error closing the resp body while downloading")
+			}
 		}
 	}()
 	if resp.StatusCode != http.StatusOK {
@@ -146,7 +166,9 @@ func (fsc *FileServerClient) UploadTextToFS(url string, data []byte) error {
 	defer func() {
 		err =  response.Body.Close()
 		if err != nil {
-			fsc.logger.WithError(err).Error("error closing the resp body while uploading")
+			if fsc.logger != nil {
+				fsc.logger.WithError(err).Error("error closing the resp body while uploading")
+			}
 		}
 	}()
 	if response.StatusCode != http.StatusAccepted {
@@ -155,5 +177,4 @@ func (fsc *FileServerClient) UploadTextToFS(url string, data []byte) error {
 	}
 
 	return nil
-
 }
