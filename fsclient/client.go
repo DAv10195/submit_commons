@@ -11,6 +11,7 @@ import (
 	"net/http"
 	url2 "net/url"
 	"os"
+	"path/filepath"
 )
 
 type FileServerClient struct {
@@ -47,28 +48,42 @@ func NewFileServerClient(adr string, username string, password string, logger *l
 	},nil
 }
 
-func (fsc *FileServerClient) UploadFile (url string, reader *os.File, isFolder bool) error {
-	
+func (fsc *FileServerClient) UploadFile (url string, isFolder bool, reader ...*os.File) error {
+
 	fullURL := fsc.adr
 	fullURL.Path = url
 	url = fullURL.String()
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	defer func(){
-		err := writer.Close()
+	var part io.Writer
+	var err error
+	for i:=0;i<len(reader);i++ {
+		part, err = writer.CreateFormFile("file", filepath.Base(reader[i].Name()))
 		if err != nil {
-			if fsc.logger != nil {
-				fsc.logger.WithError(err).Error("error closing the multipart writer while uploading")
+			err = writer.Close()
+			if err != nil {
+				if fsc.logger != nil {
+					fsc.logger.WithError(err).Error("error closing the multipart writer while uploading")
+				}
 			}
+			return err
 		}
-	}()
-	part, err := writer.CreateFormFile("file", reader.Name())
-	if err != nil {
-		return err
+		_, err = io.Copy(part, reader[i])
+		if err != nil {
+			err = writer.Close()
+			if err != nil {
+				if fsc.logger != nil {
+					fsc.logger.WithError(err).Error("error closing the multipart writer while uploading")
+				}
+			}
+			return err
+		}
 	}
-	_, err = io.Copy(part, reader)
+	err = writer.Close()
 	if err != nil {
-		return err
+		if fsc.logger != nil {
+			fsc.logger.WithError(err).Error("error closing the multipart writer while uploading")
+		}
 	}
 	request, err := http.NewRequest(http.MethodPost, url, body)
 	if err != nil {
@@ -86,6 +101,7 @@ func (fsc *FileServerClient) UploadFile (url string, reader *os.File, isFolder b
 	request.SetBasicAuth(fsc.username, decryptedPass)
 	request.Header.Add("Content-Type", writer.FormDataContentType())
 	client := &http.Client{}
+	logrus.Println(request)
 	response, err := client.Do(request)
 
 	if err != nil {
@@ -107,7 +123,7 @@ func (fsc *FileServerClient) UploadFile (url string, reader *os.File, isFolder b
 }
 
 func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) error {
-	
+
 	fullURL := fsc.adr
 	fullURL.Path = url
 	url = fullURL.String()
