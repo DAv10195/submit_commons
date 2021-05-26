@@ -60,8 +60,8 @@ func (fsc *FileServerClient) UploadFile (url string, isFolder bool, reader ...*o
 	for i:=0;i<len(reader);i++ {
 		part, err = writer.CreateFormFile("file", filepath.Base(reader[i].Name()))
 		if err != nil {
-			err = writer.Close()
-			if err != nil {
+			err2 := writer.Close()
+			if err2 != nil {
 				if fsc.logger != nil {
 					fsc.logger.WithError(err).Error("error closing the multipart writer while uploading")
 				}
@@ -70,8 +70,8 @@ func (fsc *FileServerClient) UploadFile (url string, isFolder bool, reader ...*o
 		}
 		_, err = io.Copy(part, reader[i])
 		if err != nil {
-			err = writer.Close()
-			if err != nil {
+			err2 := writer.Close()
+			if err2 != nil {
 				if fsc.logger != nil {
 					fsc.logger.WithError(err).Error("error closing the multipart writer while uploading")
 				}
