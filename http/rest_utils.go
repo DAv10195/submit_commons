@@ -7,14 +7,6 @@ import (
 	"strconv"
 )
 
-const (
-	limit		= "limit"
-	afterId		= "after_id"
-
-	base		= 10
-	bitSize		= 64
-)
-
 // params for performing rest pagination
 type PagingParams struct {
 	Limit 		int64
