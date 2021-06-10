@@ -9,4 +9,5 @@ const (
 
 	ElementsLeftToProcess	= "X-Elements-Left-To-Process"
 	ForSubmitUser			= "X-Submit-User"
+	ForSubmitCourse			= "X-Submit-Course"
 )
