@@ -1,9 +1,13 @@
 package websocket
 
 const (
-	Agents 					= "agents"
+	Agents 							= "agents"
 
-	MessageTypeKeepalive	= "keepalive"
+	MessageTypeKeepalive			= "keepalive"
+	MessageTypeKeepaliveResponse	= "keepalive_response"
 
-	AgentIdHeader			= "X-Submit-Agent-ID"
+	MessageTypeTask					= "task"
+	MessageTypeTaskResponses		= "task_responses"
+
+	AgentIdHeader					= "X-Submit-Agent-ID"
 )
