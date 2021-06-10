@@ -101,7 +101,6 @@ func (fsc *FileServerClient) UploadFile (url string, isFolder bool, reader ...*o
 	request.SetBasicAuth(fsc.username, decryptedPass)
 	request.Header.Add("Content-Type", writer.FormDataContentType())
 	client := &http.Client{}
-	logrus.Println(request)
 	response, err := client.Do(request)
 
 	if err != nil {
