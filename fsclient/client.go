@@ -169,6 +169,9 @@ func (fsc *FileServerClient) UploadTextToFS(url string, data []byte) error {
 
 	body := bytes.NewBuffer(data)
 	request, err := http.NewRequest(http.MethodPost, url, body)
+	if err != nil {
+		return err
+	}
 	decryptedPass, err := fsc.encryption.Decrypt(fsc.password)
 	if err != nil {
 		return err

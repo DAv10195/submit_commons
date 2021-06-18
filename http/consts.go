@@ -15,4 +15,6 @@ const (
 
 	AppealStateOpen			= "open"
 	AppealStateClosed		= "closed"
+
+	FsPlaceHolderFileName	= ".submit"
 )
