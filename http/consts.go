@@ -10,4 +10,9 @@ const (
 	ElementsLeftToProcess	= "X-Elements-Left-To-Process"
 	ForSubmitUser			= "X-Submit-User"
 	ForSubmitCourse			= "X-Submit-Course"
+	ForSubmitAss			= "X-Submit-Ass"
+	SubmitState				= "X-Submit-State"
+
+	AppealStateOpen			= "open"
+	AppealStateClosed		= "closed"
 )
