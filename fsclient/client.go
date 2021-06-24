@@ -198,3 +198,30 @@ func (fsc *FileServerClient) UploadTextToFS(url string, data []byte) error {
 	return nil
 
 }
+
+func (fsc *FileServerClient) Delete(path string) error {
+	url := fsc.adr
+	url.Path = path
+	password, err := fsc.encryption.Decrypt(fsc.password)
+	if err != nil {
+		return err
+	}
+	request, err := http.NewRequest(http.MethodDelete, url.String(), nil)
+	if err != nil {
+		return err
+	}
+	request.SetBasicAuth(fsc.username, password)
+	response, err := (&http.Client{}).Do(request)
+	defer func() {
+		err =  response.Body.Close()
+		if err != nil {
+			if fsc.logger != nil {
+				fsc.logger.WithError(err).Error("error closing the resp body while deleting")
+			}
+		}
+	}()
+	if response.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("error deleting path (%s). Status code is %d", path ,response.StatusCode)
+	}
+	return nil
+}
