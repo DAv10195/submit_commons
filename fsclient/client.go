@@ -121,25 +121,25 @@ func (fsc *FileServerClient) UploadFile (url string, isFolder bool, reader ...*o
 	return nil
 }
 
-func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) error {
+func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) (http.Header, error) {
 
 	fullURL := fsc.adr
 	fullURL.Path = url
 	url = fullURL.String()
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	decryptedPass, err := fsc.encryption.Decrypt(fsc.password)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	request.SetBasicAuth(fsc.username, decryptedPass)
 	client := &http.Client{}
 	// get the response from file server.
 	resp,err := client.Do(request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer func() {
@@ -152,14 +152,14 @@ func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) error {
 	}()
 	if resp.StatusCode != http.StatusOK {
 		msg := fmt.Sprintf("Downloading request for file %s failed. status code is %d", url ,resp.StatusCode)
-		return errors.New(msg)
+		return nil, errors.New(msg)
 	}
 
 	// copy the body to writer and return it.
 	if _, err = io.Copy(writer, resp.Body); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return resp.Header, nil
 }
 
 func (fsc *FileServerClient) UploadTextToFS(url string, data []byte) error {
@@ -212,6 +212,9 @@ func (fsc *FileServerClient) Delete(path string) error {
 	}
 	request.SetBasicAuth(fsc.username, password)
 	response, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return err
+	}
 	defer func() {
 		err =  response.Body.Close()
 		if err != nil {
@@ -222,6 +225,34 @@ func (fsc *FileServerClient) Delete(path string) error {
 	}()
 	if response.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("error deleting path (%s). Status code is %d", path ,response.StatusCode)
+	}
+	return nil
+}
+
+func (fsc *FileServerClient) ForwardBody(path, contentType string, b io.Reader) error {
+	url := fsc.adr
+	url.Path = path
+	password, err := fsc.encryption.Decrypt(fsc.password)
+	if err != nil {
+		return err
+	}
+	r, err := http.NewRequest(http.MethodPost, url.String(), b)
+	if err != nil {
+		return err
+	}
+	r.SetBasicAuth(fsc.username, password)
+	r.Header.Add("Content-Type", contentType)
+	response, err := (&http.Client{}).Do(r)
+	defer func() {
+		err =  response.Body.Close()
+		if err != nil {
+			if fsc.logger != nil {
+				fsc.logger.WithError(err).Error("error closing the resp body while forwarding the given body")
+			}
+		}
+	}()
+	if response.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("error forwarding body (%s). Status code is %d", path, response.StatusCode)
 	}
 	return nil
 }

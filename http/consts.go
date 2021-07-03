@@ -12,11 +12,7 @@ const (
 	ForSubmitCourse			= "X-Submit-Course"
 	ForSubmitAss			= "X-Submit-Ass"
 	SubmitState				= "X-Submit-State"
-
-	SubmitSessionRoles			= "X-Submit-Session-Roles"
-	SubmitSessionStaffCourses 	= "X-Submit-Session-Staff-Courses"
-	SubmitSessionStudentCourses = "X-Submit-Session-Student-Courses"
-	SubmitSessionUser			= ForSubmitUser
+	SubmitFile				= "X-Submit-File"
 
 	AppealStateOpen			= "open"
 	AppealStateClosed		= "closed"
