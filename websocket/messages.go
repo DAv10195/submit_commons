@@ -25,15 +25,29 @@ type Task struct {
 	ResponseHandler	string					`json:"response_handler"`
 	Timeout			int						`json:"timeout"`
 	Dependencies	*containers.StringSet	`json:"dependencies"`
+	Labels			map[string]interface{}	`json:"labels"`
 }
 
 type TaskResponse struct {
-	Payload		string	`json:"payload"`
-	Handler		string	`json:"handler"`
-	Task		string	`json:"task"`
-	Status		int		`json:"status"`
+	Payload		string						`json:"payload"`
+	Handler		string						`json:"handler"`
+	Task		string						`json:"task"`
+	Status		int							`json:"status"`
+	Labels		map[string]interface{}		`json:"labels"`
 }
 
 type TaskResponses struct {
 	Responses []*TaskResponse	`json:"task_responses"`
+}
+
+type MossPair struct {
+	Percentage1 	int 		`json:"percentage1"`
+	Percentage2		int			`json:"percentage2"`
+	Name1			string		`json:"name1"`
+	Name2			string		`json:"name2"`
+}
+
+type MossOutput struct {
+	Pairs	[]*MossPair		`json:"matches"`
+	Link	string			`json:"link"`
 }
