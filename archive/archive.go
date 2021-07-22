@@ -3,11 +3,11 @@ package archive
 import (
 	"archive/tar"
 	"compress/gzip"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 func Compress(src string, logger *logrus.Entry, writers ...io.Writer) error {
@@ -46,41 +46,39 @@ func Compress(src string, logger *logrus.Entry, writers ...io.Writer) error {
 		}
 
 		// create a new dir/file header
-		header, err := tar.FileInfoHeader(fi, fi.Name())
+		header, err := tar.FileInfoHeader(fi, file)
 		if err != nil {
 			return err
 		}
 
 		// update the name to correctly reflect the desired destination when untaring
-		header.Name = strings.TrimPrefix(strings.Replace(file, src, "", -1), string(filepath.Separator))
+		header.Name = filepath.ToSlash(file)
+		if fi.IsDir() {
+			header.Name = fmt.Sprintf("%s/", header.Name)
+		}
 
 		// write the header
 		if err := tw.WriteHeader(header); err != nil {
 			return err
 		}
 
-		if !fi.Mode().IsRegular() {
-			return nil
+		if !fi.IsDir() {
+			// open files for taring
+			f, err := os.Open(file)
+			if err != nil {
+				return err
+			}
+			// copy file data into tar writer
+			if _, err = io.Copy(tw, f); err != nil {
+				return err
+			}
+			// manually close here after each file operation; defering would cause each file close
+			// to wait until all operations have completed.
+			err = f.Close()
+			if err != nil {
+				return err
+			}
 		}
-
-		// open files for taring
-		f, err := os.Open(file)
-		if err != nil {
-			return err
-		}
-
-		// copy file data into tar writer
-		if _, err = io.Copy(tw, f); err != nil {
-			return err
-		}
-
-		// manually close here after each file operation; defering would cause each file close
-		// to wait until all operations have completed.
-		err = f.Close()
-		if err != nil {
-			return err
-		}
-
 		return nil
 	})
 }
