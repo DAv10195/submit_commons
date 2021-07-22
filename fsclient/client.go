@@ -2,6 +2,7 @@ package fsclient
 
 import (
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/DAv10195/submit_commons/encryption"
@@ -20,9 +21,10 @@ type FileServerClient struct {
 	password string
 	logger   *logrus.Entry
 	encryption encryption.Encryption
+	tlsConf	 *tls.Config
 }
 
-func NewFileServerClient(adr string, username string, password string, logger *logrus.Entry, encryption encryption.Encryption) (*FileServerClient, error){
+func NewFileServerClient(adr string, username string, password string, logger *logrus.Entry, encryption encryption.Encryption, tlsConf *tls.Config) (*FileServerClient, error){
 	if username == "" {
 		return nil, errors.New("failed to initialize file server client, username was not given")
 	}
@@ -45,6 +47,7 @@ func NewFileServerClient(adr string, username string, password string, logger *l
 		password:   password,
 		logger:     logger,
 		encryption: encryption,
+		tlsConf: tlsConf,
 	},nil
 }
 
@@ -101,6 +104,9 @@ func (fsc *FileServerClient) UploadFile (url string, isFolder bool, reader ...*o
 	request.SetBasicAuth(fsc.username, decryptedPass)
 	request.Header.Add("Content-Type", writer.FormDataContentType())
 	client := &http.Client{}
+	if fsc.tlsConf != nil {
+		client.Transport = &http.Transport{TLSClientConfig: fsc.tlsConf}
+	}
 	response, err := client.Do(request)
 
 	if err != nil {
@@ -136,6 +142,9 @@ func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) (http.He
 	}
 	request.SetBasicAuth(fsc.username, decryptedPass)
 	client := &http.Client{}
+	if fsc.tlsConf != nil {
+		client.Transport = &http.Transport{TLSClientConfig: fsc.tlsConf}
+	}
 	// get the response from file server.
 	resp,err := client.Do(request)
 	if err != nil {
@@ -178,6 +187,9 @@ func (fsc *FileServerClient) UploadTextToFS(url string, data []byte) error {
 	}
 	request.SetBasicAuth(fsc.username, decryptedPass)
 	client := &http.Client{}
+	if fsc.tlsConf != nil {
+		client.Transport = &http.Transport{TLSClientConfig: fsc.tlsConf}
+	}
 	response, err := client.Do(request)
 	if err != nil {
 		return err
@@ -211,7 +223,11 @@ func (fsc *FileServerClient) Delete(path string) error {
 		return err
 	}
 	request.SetBasicAuth(fsc.username, password)
-	response, err := (&http.Client{}).Do(request)
+	client := &http.Client{}
+	if fsc.tlsConf != nil {
+		client.Transport = &http.Transport{TLSClientConfig: fsc.tlsConf}
+	}
+	response, err := client.Do(request)
 	if err != nil {
 		return err
 	}
@@ -242,7 +258,11 @@ func (fsc *FileServerClient) ForwardBody(path, contentType string, b io.Reader) 
 	}
 	r.SetBasicAuth(fsc.username, password)
 	r.Header.Add("Content-Type", contentType)
-	response, err := (&http.Client{}).Do(r)
+	client := &http.Client{}
+	if fsc.tlsConf != nil {
+		client.Transport = &http.Transport{TLSClientConfig: fsc.tlsConf}
+	}
+	response, err := client.Do(r)
 	defer func() {
 		err =  response.Body.Close()
 		if err != nil {
