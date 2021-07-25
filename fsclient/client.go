@@ -24,6 +24,7 @@ type FileServerClient struct {
 	tlsConf	 *tls.Config
 }
 
+// create a new fs client
 func NewFileServerClient(adr string, username string, password string, logger *logrus.Entry, encryption encryption.Encryption, tlsConf *tls.Config) (*FileServerClient, error){
 	if username == "" {
 		return nil, errors.New("failed to initialize file server client, username was not given")
@@ -51,6 +52,8 @@ func NewFileServerClient(adr string, username string, password string, logger *l
 	},nil
 }
 
+// upload a file to the given path (url). If isFolder is true then the given files will all be treated
+// as archives which will be extracted in the file server
 func (fsc *FileServerClient) UploadFile (url string, isFolder bool, reader ...*os.File) error {
 
 	fullURL := fsc.adr
@@ -127,6 +130,7 @@ func (fsc *FileServerClient) UploadFile (url string, isFolder bool, reader ...*o
 	return nil
 }
 
+// download the resource at the given path (url) and write it to given writer (e.g. a file)
 func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) (http.Header, error) {
 
 	fullURL := fsc.adr
@@ -171,6 +175,7 @@ func (fsc *FileServerClient) DownloadFile(url string, writer io.Writer) (http.He
 	return resp.Header, nil
 }
 
+// upload the given bytes to the given path (url)
 func (fsc *FileServerClient) UploadTextToFS(url string, data []byte) error {
 	fullURL := fsc.adr
 	fullURL.Path = url
@@ -211,6 +216,7 @@ func (fsc *FileServerClient) UploadTextToFS(url string, data []byte) error {
 
 }
 
+// delete the resource in the given path
 func (fsc *FileServerClient) Delete(path string) error {
 	url := fsc.adr
 	url.Path = path
@@ -245,6 +251,7 @@ func (fsc *FileServerClient) Delete(path string) error {
 	return nil
 }
 
+// forward the data in the given reader (b, e.g. an http request body) to the given path with the given content type
 func (fsc *FileServerClient) ForwardBody(path, contentType string, b io.Reader) error {
 	url := fsc.adr
 	url.Path = path

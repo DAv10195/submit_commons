@@ -57,6 +57,7 @@ func (s *StringSet) String() string {
 	return fmt.Sprintf("{%s}", strings.Join(s.Slice(), ","))
 }
 
+// return a new set representing the union of the given sets
 func StringSetUnion(sets ...*StringSet) *StringSet {
 	unionSet := NewStringSet()
 	for _, set := range sets {
@@ -65,6 +66,7 @@ func StringSetUnion(sets ...*StringSet) *StringSet {
 	return unionSet
 }
 
+// return a new set representing the intersection of the given sets
 func StringSetIntersection(sets ...*StringSet) *StringSet {
 	intersectionSet := NewStringSet()
 	if len(sets) > 0 {

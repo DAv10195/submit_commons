@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 )
 
+// compress the contents of the given path (src) and write the archive to the given writers
 func Compress(src string, logger *logrus.Entry, writers ...io.Writer) error {
 
 	// ensure the src actually exists before trying to tar it
@@ -83,6 +84,7 @@ func Compress(src string, logger *logrus.Entry, writers ...io.Writer) error {
 	})
 }
 
+// extract the contents of the given reader (r) to the given destination (dst)
 func Extract(dst string, logger *logrus.Entry, r io.Reader) error {
 
 	gzr, err := gzip.NewReader(r)
