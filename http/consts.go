@@ -13,6 +13,7 @@ const (
 	ForSubmitAss			= "X-Submit-Ass"
 	SubmitState				= "X-Submit-State"
 	SubmitFile				= "X-Submit-File"
+	SubmitAgent				= "X-Submit-Agent"
 
 	AppealStateOpen			= "open"
 	AppealStateClosed		= "closed"
