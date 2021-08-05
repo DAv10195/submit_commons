@@ -1,0 +1,1 @@
+# Common components shared by all 3 services (server, file server and agent) of the new Submit system which are written in Go
